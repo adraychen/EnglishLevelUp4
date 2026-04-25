@@ -3,7 +3,7 @@ services:
     name: fluency-coach
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: startCommand: bash startup.sh
     envVars:
       - key: GROQ_API_KEY
         sync: false
