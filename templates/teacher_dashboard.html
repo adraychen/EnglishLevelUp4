@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 style="margin-bottom:24px;">Teacher Dashboard 👩‍🏫</h2>
+
+<div class="card">
+  <div class="card-title">Students ({{ students|length }})</div>
+  {% if students %}
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <thead>
+      <tr style="border-bottom:1px solid #e9ecef;color:#6c757d;">
+        <th style="text-align:left;padding:8px 0;">Name</th>
+        <th style="text-align:left;padding:8px 0;">Sessions</th>
+        <th style="text-align:left;padding:8px 0;">Overall</th>
+        <th style="text-align:left;padding:8px 0;">Vocabulary</th>
+        <th style="text-align:left;padding:8px 0;">Phrasing</th>
+        <th style="text-align:left;padding:8px 0;">Structure</th>
+        <th style="text-align:left;padding:8px 0;"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for student in students %}
+      {% set report = student.reports[-1] if student.reports else None %}
+      <tr style="border-bottom:1px solid #f1f3f5;">
+        <td style="padding:10px 0;font-weight:500;">{{ student.name }}</td>
+        <td style="padding:10px 0;color:#6c757d;">{{ student.sessions|length }}</td>
+        <td style="padding:10px 0;">
+          {% if report %}
+            <span class="score-badge badge-{{ report.overall_label.lower() }}">
+              {{ report.overall_label }}
+            </span>
+          {% else %}—{% endif %}
+        </td>
+        <td style="padding:10px 0;">
+          {% if report %}
+            <span class="score-badge badge-{{ report.vocabulary_label.lower() }}">
+              {{ report.vocabulary_label }}
+            </span>
+          {% else %}—{% endif %}
+        </td>
+        <td style="padding:10px 0;">
+          {% if report %}
+            <span class="score-badge badge-{{ report.phrasing_label.lower() }}">
+              {{ report.phrasing_label }}
+            </span>
+          {% else %}—{% endif %}
+        </td>
+        <td style="padding:10px 0;">
+          {% if report %}
+            <span class="score-badge badge-{{ report.structure_label.lower() }}">
+              {{ report.structure_label }}
+            </span>
+          {% else %}—{% endif %}
+        </td>
+        <td style="padding:10px 0;">
+          <a href="{{ url_for('student_detail', student_id=student.id) }}"
+             style="font-size:13px;color:#0d6efd;text-decoration:none;">View →</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:#6c757d;font-size:14px;">No students registered yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

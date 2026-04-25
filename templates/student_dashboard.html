@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 style="margin-bottom:24px;">Welcome back, {{ current_user.name }} 👋</h2>
+
+<div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;">
+  <a href="{{ url_for('chat') }}" class="btn btn-primary">+ New conversation</a>
+</div>
+
+{% if report %}
+<div class="card">
+  <div class="card-title">📊 Latest progress report
+    <span style="font-size:13px;font-weight:400;color:#6c757d;">
+      (Sessions {{ report.sessions_from }}–{{ report.sessions_to }})
+    </span>
+  </div>
+
+  {% set categories = [
+    ('Vocabulary',  report.vocabulary_score,  report.vocabulary_label,  report.vocabulary_description),
+    ('Phrasing',    report.phrasing_score,    report.phrasing_label,    report.phrasing_description),
+    ('Structure',   report.structure_score,   report.structure_label,   report.structure_description),
+  ] %}
+
+  {% for name, score, label, desc in categories %}
+  <div style="margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <span style="font-weight:500;font-size:14px;">{{ name }}</span>
+      <span class="score-badge badge-{{ label.lower() }}">{{ label }}</span>
+      <span style="font-size:13px;color:#6c757d;">{{ score }}/10</span>
+    </div>
+    <p style="font-size:13px;color:#495057;line-height:1.6;">{{ desc }}</p>
+  </div>
+  {% endfor %}
+
+  <div style="border-top:1px solid #e9ecef;padding-top:16px;margin-top:8px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <span style="font-weight:600;font-size:14px;">Overall</span>
+      <span class="score-badge badge-{{ report.overall_label.lower() }}">{{ report.overall_label }}</span>
+      <span style="font-size:13px;color:#6c757d;">{{ report.overall_score }}/10</span>
+    </div>
+    <p style="font-size:13px;color:#495057;line-height:1.6;">{{ report.improvement_description }}</p>
+  </div>
+</div>
+{% else %}
+<div class="card" style="color:#6c757d;font-size:14px;">
+  Your first progress report will be generated after 5 sessions. Keep going! 💪
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-title">📝 Session history</div>
+  {% if sessions %}
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <thead>
+      <tr style="border-bottom:1px solid #e9ecef;color:#6c757d;">
+        <th style="text-align:left;padding:8px 0;">#</th>
+        <th style="text-align:left;padding:8px 0;">Topic</th>
+        <th style="text-align:left;padding:8px 0;">Date</th>
+        <th style="text-align:left;padding:8px 0;">Overall</th>
+        <th style="text-align:left;padding:8px 0;">Suggestion</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in sessions %}
+      <tr style="border-bottom:1px solid #f1f3f5;">
+        <td style="padding:10px 0;color:#6c757d;">{{ s.session_number }}</td>
+        <td style="padding:10px 0;">{{ s.topic }}</td>
+        <td style="padding:10px 0;color:#6c757d;">{{ s.date.strftime('%b %d, %Y') }}</td>
+        <td style="padding:10px 0;">
+          {% if s.analysis %}
+            <span class="score-badge badge-{{ score_to_label(s.analysis.overall_score).lower() }}">
+              {{ score_to_label(s.analysis.overall_score) }}
+            </span>
+            <span style="font-size:12px;color:#6c757d;margin-left:4px;">
+              {{ s.analysis.overall_score }}/10
+            </span>
+          {% else %}—{% endif %}
+        </td>
+        <td style="padding:10px 0;font-size:12px;color:#6c757d;max-width:240px;">
+          {% if s.analysis %}{{ s.analysis.suggestion }}{% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:#6c757d;font-size:14px;">No sessions yet. Start your first conversation!</p>
+  {% endif %}
+</div>
+{% endblock %}
