@@ -1,0 +1,11 @@
+flask
+flask-login
+flask-sqlalchemy
+flask-bcrypt
+psycopg2-binary
+crewai>=0.80.0
+groq
+litellm
+gtts
+python-dotenv
+gunicorn
