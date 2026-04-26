@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+{% block extra_styles %}
+.chat-wrap { max-width: 680px; margin: 0 auto; }
+.bubble { padding: 12px 16px; border-radius: 12px; font-size: 14px;
+          line-height: 1.6; margin-bottom: 10px; max-width: 85%; }
+.bubble-coach   { background: #f1f3f5; color: #212529; align-self: flex-start; }
+.bubble-user    { background: #0d6efd; color: #fff; align-self: flex-end; margin-left: auto; }
+.bubble-comment { background: #fff3cd; color: #664d03; align-self: flex-start;
+                  font-size: 13px; border-left: 3px solid #ffc107;
+                  border-radius: 0 8px 8px 0; }
+.chat-messages  { display: flex; flex-direction: column; gap: 4px;
+                  min-height: 300px; margin-bottom: 20px; }
+.input-row      { display: flex; gap: 10px; align-items: center; margin-top: 12px; }
+.mic-btn        { width: 52px; height: 52px; border-radius: 50%; border: none;
+                  background: #0d6efd; color: #fff; font-size: 20px; cursor: pointer;
+                  display: flex; align-items: center; justify-content: center;
+                  flex-shrink: 0; }
+.mic-btn.recording { background: #dc3545; animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+.text-input  { flex: 1; padding: 12px 16px; border: 1px solid #ced4da;
+               border-radius: 8px; font-size: 14px; outline: none; }
+.text-input:focus { border-color: #0d6efd; }
+.send-btn    { padding: 12px 20px; background: #0d6efd; color: #fff; border: none;
+               border-radius: 8px; font-size: 14px; cursor: pointer; }
+.progress-bar  { height: 4px; background: #e9ecef; border-radius: 4px; margin-bottom: 20px; }
+.progress-fill { height: 100%; background: #0d6efd; border-radius: 4px;
+                 transition: width .4s ease; }
+.practice-wrap  { max-width: 680px; margin: 0 auto; }
+.practice-intro { background: #e8f4fd; border-radius: 10px; padding: 16px 20px;
+                  margin-bottom: 24px; font-size: 14px; color: #0c5460; line-height: 1.6; }
+.practice-card  { background: #fff; border: 1px solid #e9ecef; border-radius: 12px;
+                  padding: 24px; margin-bottom: 16px; }
+.p-label  { font-size: 11px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: .05em; color: #6c757d; margin-bottom: 6px; }
+.p-text   { font-size: 15px; color: #212529; line-height: 1.6; margin-bottom: 16px; }
+.p-suggestion { font-size: 15px; color: #0d6efd; line-height: 1.6;
+                margin-bottom: 12px; font-weight: 500; }
+.listen-btn { background: #e8f4fd; border: 1px solid #bee5eb; color: #0c5460;
+              padding: 6px 14px; border-radius: 20px; font-size: 13px;
+              cursor: pointer; margin-bottom: 16px; }
+.listen-btn:hover { background: #d1ecf1; }
+.p-divider { border: none; border-top: 1px solid #e9ecef; margin: 16px 0; }
+.p-mic-btn { width: 56px; height: 56px; border-radius: 50%; border: none;
+             background: #0d6efd; color: #fff; font-size: 22px; cursor: pointer; }
+.p-mic-btn.recording { background: #dc3545; animation: pulse 1s infinite; }
+.transcribed-box { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px;
+                   padding: 12px 16px; font-size: 14px; color: #212529;
+                   line-height: 1.6; margin: 12px 0; min-height: 44px; }
+.practice-progress { font-size: 12px; color: #6c757d; margin-bottom: 16px; }
+{% endblock %}
+
+{% block content %}
+<div class="chat-wrap" id="chat-section">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+    <div>
+      <div style="font-size:12px;color:#6c757d;">Topic</div>
+      <div style="font-weight:600;">{{ topic }}</div>
+    </div>
+    <div style="font-size:13px;color:#6c757d;" id="turn-label">Turn 1 of 5</div>
+  </div>
+
+  <div class="progress-bar"><div class="progress-fill" id="progress" style="width:0%"></div></div>
+
+  <div class="chat-messages" id="messages">
+    <div class="bubble bubble-coach">{{ opening }}</div>
+  </div>
+
+  <div id="input-area">
+    <div class="input-row">
+      <button class="mic-btn" id="mic-btn" title="Tap to record">🎤</button>
+      <input class="text-input" type="text" id="text-input" placeholder="Or type your answer here...">
+      <button class="send-btn" id="send-btn">Send</button>
+    </div>
+    <div style="font-size:12px;color:#6c757d;margin-top:8px;text-align:center;">
+      Tap 🎤 to start recording · tap again to stop
+    </div>
+  </div>
+</div>
+
+<div class="practice-wrap" id="practice-section" style="display:none;">
+  <h2 style="margin-bottom:16px;">🗣️ Fluency Practice</h2>
+  <div class="practice-intro">
+    <strong>Shadowing practice:</strong> Read the suggested answer out loud and record yourself.
+    Compare what you said with the suggested answer. Tap 🔊 <strong>Listen</strong> anytime
+    to hear how it sounds. Tap <strong>Next →</strong> when you are ready to move on.
+  </div>
+  <div class="practice-progress" id="practice-progress">Question 1 of 5</div>
+  <div class="practice-card" id="practice-card"></div>
+</div>
+
+<audio id="audio-player" style="display:none"></audio>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const MAX_TURNS    = 5;
+let turnCount      = 0;
+let lastQuestion   = {{ opening | tojson }};
+let isRecording    = false;
+let mediaRecorder  = null;
+let audioChunks    = [];
+let finishing      = false;
+let practiceData   = [];
+let practiceIndex  = 0;
+let practiceRec    = false;
+let practiceMR     = null;
+let practiceChunks = [];
+
+const player    = document.getElementById('audio-player');
+const messages  = document.getElementById('messages');
+const micBtn    = document.getElementById('mic-btn');
+const textInput = document.getElementById('text-input');
+const sendBtn   = document.getElementById('send-btn');
+
+playAudio({{ opening_audio | tojson }});
+
+function playAudio(b64, onEnded) {
+  player.src = 'data:audio/mp3;base64,' + b64;
+  player.onended = onEnded || null;
+  player.play().catch(() => {});
+}
+
+function addBubble(text, type) {
+  const div = document.createElement('div');
+  div.className = 'bubble bubble-' + type;
+  div.textContent = text;
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function updateProgress() {
+  document.getElementById('progress').style.width = (turnCount / MAX_TURNS * 100) + '%';
+  document.getElementById('turn-label').textContent =
+    `Turn ${Math.min(turnCount + 1, MAX_TURNS)} of ${MAX_TURNS}`;
+}
+
+async function sendAnswer(text) {
+  if (!text || finishing) return;
+  finishing = turnCount + 1 >= MAX_TURNS;
+  micBtn.disabled = sendBtn.disabled = true;
+  textInput.disabled = true;
+  addBubble(text, 'user');
+  turnCount++;
+  updateProgress();
+
+  const res = await fetch('/chat/respond', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ text, last_question: lastQuestion }),
+  });
+  const data = await res.json();
+  addBubble('💬 ' + data.comment, 'comment');
+
+  if (data.is_last) {
+    // Play comment audio first, then closing audio, then finish
+    playAudio(data.comment_audio, () => {
+      addBubble(data.closing, 'coach');
+      playAudio(data.closing_audio, finishSession);
+    });
+  } else {
+    playAudio(data.comment_audio, () => {
+      addBubble(data.question, 'coach');
+      lastQuestion = data.question;
+      playAudio(data.question_audio);
+      micBtn.disabled = sendBtn.disabled = false;
+      textInput.disabled = false;
+      textInput.value = '';
+      textInput.focus();
+    });
+  }
+}
+
+async function finishSession() {
+  const res = await fetch('/chat/finish', { method: 'POST' });
+  const data = await res.json();
+  practiceData  = data.review_turns;
+  practiceIndex = 0;
+  document.getElementById('chat-section').style.display = 'none';
+  document.getElementById('practice-section').style.display = 'block';
+  renderPracticeCard();
+}
+
+function renderPracticeCard() {
+  const t = practiceData[practiceIndex];
+  document.getElementById('practice-progress').textContent =
+    `Question ${practiceIndex + 1} of ${practiceData.length}`;
+
+  document.getElementById('practice-card').innerHTML = `
+    <div class="p-label">Question</div>
+    <div class="p-text">${t.question || '(opening question)'}</div>
+
+    <div class="p-label">Suggested answer</div>
+    <div class="p-suggestion">${t.suggestion}</div>
+    <button class="listen-btn" onclick="listenSuggestion(${practiceIndex})">
+      🔊 Listen
+    </button>
+
+    <hr class="p-divider">
+
+    <div class="p-label" style="margin-bottom:10px;">
+      Record yourself saying the answer
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+      <button class="p-mic-btn" id="p-mic-btn" onclick="togglePracticeRec()">🎤</button>
+      <span style="font-size:13px;color:#6c757d;">Tap to start · tap again to stop</span>
+    </div>
+
+    <div class="p-label">What you said</div>
+    <div class="transcribed-box" id="transcribed-box">—</div>
+
+    <div style="margin-top:16px;">
+      <button class="btn btn-secondary" onclick="retryPractice()"
+        style="margin-right:8px;">🔄 Try again</button>
+      <button class="btn btn-primary" onclick="nextPractice()">
+        ${practiceIndex + 1 < practiceData.length ? 'Next →' : 'Finish ✓'}
+      </button>
+    </div>
+  `;
+
+  // Speak the question automatically
+  if (t.question_audio) {
+    playAudio(t.question_audio);
+  }
+}
+
+function listenSuggestion(index) {
+  playAudio(practiceData[index].suggestion_audio);
+}
+
+async function togglePracticeRec() {
+  const btn = document.getElementById('p-mic-btn');
+  if (!practiceRec) {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    practiceMR     = new MediaRecorder(stream);
+    practiceChunks = [];
+    practiceMR.ondataavailable = e => practiceChunks.push(e.data);
+    practiceMR.onstop = async () => {
+      const blob = new Blob(practiceChunks, { type: 'audio/wav' });
+      const res  = await fetch('/chat/transcribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'audio/wav' },
+        body: blob,
+      });
+      const data = await res.json();
+      const box  = document.getElementById('transcribed-box');
+      if (box) box.textContent = data.text || '(Could not transcribe — please try again)';
+    };
+    practiceMR.start();
+    practiceRec = true;
+    btn.classList.add('recording');
+    btn.textContent = '⏹';
+  } else {
+    practiceMR.stop();
+    practiceMR.stream.getTracks().forEach(t => t.stop());
+    practiceRec = false;
+    btn.classList.remove('recording');
+    btn.textContent = '🎤';
+  }
+}
+
+function retryPractice() {
+  const box = document.getElementById('transcribed-box');
+  if (box) box.textContent = '—';
+}
+
+function nextPractice() {
+  practiceIndex++;
+  if (practiceIndex < practiceData.length) {
+    renderPracticeCard();
+  } else {
+    document.getElementById('practice-card').innerHTML = `
+      <div style="padding:16px;background:#d4edda;border-radius:10px;
+                  color:#155724;margin-bottom:16px;">
+        ✅ Fluency practice complete! Great work today.
+      </div>
+      <a href="/chat" class="btn btn-primary" style="margin-right:8px;">
+        New conversation
+      </a>
+      <a href="/dashboard" class="btn btn-secondary">Dashboard</a>
+    `;
+    document.getElementById('practice-progress').textContent = '';
+  }
+}
+
+// Conversation mic
+micBtn.addEventListener('click', async () => {
+  if (!isRecording) {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks   = [];
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = async () => {
+      const blob = new Blob(audioChunks, { type: 'audio/wav' });
+      const res  = await fetch('/chat/transcribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'audio/wav' },
+        body: blob,
+      });
+      const data = await res.json();
+      if (data.text) sendAnswer(data.text);
+    };
+    mediaRecorder.start();
+    isRecording = true;
+    micBtn.classList.add('recording');
+    micBtn.textContent = '⏹';
+  } else {
+    mediaRecorder.stop();
+    mediaRecorder.stream.getTracks().forEach(t => t.stop());
+    isRecording = false;
+    micBtn.classList.remove('recording');
+    micBtn.textContent = '🎤';
+  }
+});
+
+sendBtn.addEventListener('click', () => sendAnswer(textInput.value.trim()));
+textInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendAnswer(textInput.value.trim());
+});
+</script>
